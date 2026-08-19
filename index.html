@@ -4,25 +4,16 @@
     <meta charset="UTF-8">
     <title>Garry's Mod Loading Screen</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body, html {
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             overflow: hidden;
             background-color: #000;
         }
-
         .slide {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -30,135 +21,64 @@
             opacity: 0;
             transition: opacity 1.5s ease-in-out;
         }
-
-        .slide.active {
-            opacity: 1;
-        }
+        .slide.active { opacity: 1; }
     </style>
 </head>
 <body>
 
-    <!-- Два слоя для плавного кроссфейда -->
     <div class="slide" id="slideA"></div>
     <div class="slide" id="slideB"></div>
 
-    <script>
-        // ===== СЛАЙДШОУ =====
-        var images = [
-            'bg1.jpg',  'bg2.jpg',  'bg3.jpg',  'bg4.jpg',
-            'bg5.jpg',  'bg6.jpg',  'bg7.jpg',  'bg8.jpg',
-            'bg9.jpg',  'bg10.jpg', 'bg11.jpg', 'bg12.jpg',
-            'bg13.jpg', 'bg14.jpg'
-        ];
+    <!-- Оба формата: браузеры используют mp3, GMod использует ogg -->
+    <audio id="music" autoplay loop preload="auto">
+        <source src="music.ogg" type="audio/ogg">
+        <source src="music.mp3" type="audio/mpeg">
+    </audio>
 
-        var currentIndex = 0;
-        var slideA = document.getElementById('slideA');
-        var slideB = document.getElementById('slideB');
+    <script>
+        // Слайдшоу
+        var images = [
+            'bg1.jpg','bg2.jpg','bg3.jpg','bg4.jpg',
+            'bg5.jpg','bg6.jpg','bg7.jpg','bg8.jpg',
+            'bg9.jpg','bg10.jpg','bg11.jpg','bg12.jpg',
+            'bg13.jpg','bg14.jpg'
+        ];
+        var idx = 0;
+        var A = document.getElementById('slideA');
+        var B = document.getElementById('slideB');
         var useA = true;
 
-        function setSlide(el, src) {
-            el.style.backgroundImage = "url('" + src + "')";
-        }
-
-        setSlide(slideA, images[0]);
-        slideA.classList.add('active');
+        A.style.backgroundImage = "url('" + images[0] + "')";
+        A.classList.add('active');
 
         setInterval(function() {
-            currentIndex = (currentIndex + 1) % images.length;
+            idx = (idx + 1) % images.length;
             if (useA) {
-                setSlide(slideB, images[currentIndex]);
-                slideB.style.zIndex = 1;
-                slideA.style.zIndex = 0;
-                slideB.classList.add('active');
-                slideA.classList.remove('active');
+                B.style.backgroundImage = "url('" + images[idx] + "')";
+                B.style.zIndex = 1; A.style.zIndex = 0;
+                B.classList.add('active'); A.classList.remove('active');
             } else {
-                setSlide(slideA, images[currentIndex]);
-                slideA.style.zIndex = 1;
-                slideB.style.zIndex = 0;
-                slideA.classList.add('active');
-                slideB.classList.remove('active');
+                A.style.backgroundImage = "url('" + images[idx] + "')";
+                A.style.zIndex = 1; B.style.zIndex = 0;
+                A.classList.add('active'); B.classList.remove('active');
             }
             useA = !useA;
         }, 8000);
 
-        // ===== МУЗЫКА через AudioContext (обход блокировки) =====
-        var audioCtx = null;
-        var audioSource = null;
-        var audioBuffer = null;
-        var musicStarted = false;
+        // Музыка
+        var music = document.getElementById('music');
 
-        function startMusicAudioContext() {
-            if (musicStarted) return;
-            if (!audioBuffer) return;
-            try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                audioSource = audioCtx.createBufferSource();
-                audioSource.buffer = audioBuffer;
-                audioSource.loop = true;
-                audioSource.connect(audioCtx.destination);
-                audioSource.start(0);
-                musicStarted = true;
-            } catch(e) {}
+        function play() {
+            music.play().catch(function(){});
         }
 
-        function loadAndPlay() {
-            try {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Пробуем сразу
+        play();
 
-                // Если контекст сразу в running — играем
-                if (audioCtx.state === 'running' && audioBuffer) {
-                    startMusicAudioContext();
-                }
-
-                // Слушаем разблокировку контекста
-                audioCtx.onstatechange = function() {
-                    if (audioCtx.state === 'running') startMusicAudioContext();
-                };
-
-                fetch('music.ogg')
-                    .then(function(r) { return r.arrayBuffer(); })
-                    .then(function(data) {
-                        audioCtx.decodeAudioData(data, function(buffer) {
-                            audioBuffer = buffer;
-                            startMusicAudioContext();
-                        });
-                    })
-                    .catch(function() {
-                        // fetch не сработал — fallback на обычный audio
-                        fallbackAudio();
-                    });
-            } catch(e) {
-                fallbackAudio();
-            }
-        }
-
-        // Fallback: обычный <audio> тег
-        function fallbackAudio() {
-            if (musicStarted) return;
-            var audio = new Audio('music.ogg');
-            audio.loop = true;
-            audio.volume = 1;
-            audio.play().then(function() {
-                musicStarted = true;
-            }).catch(function() {
-                // Браузер всё равно блокирует — ждём взаимодействия
-            });
-        }
-
-        // Запускаем сразу
-        loadAndPlay();
-
-        // При любом взаимодействии пробуем ещё раз
-        ['click','keydown','mousemove','touchstart','mousedown'].forEach(function(evt) {
-            document.addEventListener(evt, function() {
-                if (audioCtx && audioCtx.state === 'suspended') {
-                    audioCtx.resume().then(function() {
-                        startMusicAudioContext();
-                    });
-                }
-                if (!musicStarted) fallbackAudio();
-            }, { once: true });
-        });
+        // При любом движении/клике — запускаем
+        document.addEventListener('mousemove', play, { once: true });
+        document.addEventListener('click', play, { once: true });
+        document.addEventListener('keydown', play, { once: true });
     </script>
 
 </body>
