@@ -42,10 +42,8 @@
     <div class="slide" id="slideA"></div>
     <div class="slide" id="slideB"></div>
 
-    <!-- Музыка -->
-    <audio id="bgMusic" autoplay loop src="music.mp3" preload="auto"></audio>
-
     <script>
+        // ===== СЛАЙДШОУ =====
         var images = [
             'bg1.jpg',  'bg2.jpg',  'bg3.jpg',  'bg4.jpg',
             'bg5.jpg',  'bg6.jpg',  'bg7.jpg',  'bg8.jpg',
@@ -56,65 +54,110 @@
         var currentIndex = 0;
         var slideA = document.getElementById('slideA');
         var slideB = document.getElementById('slideB');
-
-        // Какой слой сейчас "активный" (видимый)
         var useA = true;
 
         function setSlide(el, src) {
             el.style.backgroundImage = "url('" + src + "')";
         }
 
-        // Показываем первую картинку сразу
         setSlide(slideA, images[0]);
         slideA.classList.add('active');
 
         setInterval(function() {
             currentIndex = (currentIndex + 1) % images.length;
-
             if (useA) {
-                // Следующая картинка на слой B, затем показываем B и скрываем A
                 setSlide(slideB, images[currentIndex]);
                 slideB.style.zIndex = 1;
                 slideA.style.zIndex = 0;
                 slideB.classList.add('active');
                 slideA.classList.remove('active');
             } else {
-                // Следующая картинка на слой A, затем показываем A и скрываем B
                 setSlide(slideA, images[currentIndex]);
                 slideA.style.zIndex = 1;
                 slideB.style.zIndex = 0;
                 slideA.classList.add('active');
                 slideB.classList.remove('active');
             }
-
             useA = !useA;
         }, 8000);
 
-        // Запуск музыки — несколько попыток
-        var music = document.getElementById('bgMusic');
+        // ===== МУЗЫКА через AudioContext (обход блокировки) =====
+        var audioCtx = null;
+        var audioSource = null;
+        var audioBuffer = null;
+        var musicStarted = false;
 
-        function tryPlay() {
-            var promise = music.play();
-            if (promise !== undefined) {
-                promise.catch(function() {
-                    // Если заблокировано — повторяем через секунду
-                    setTimeout(tryPlay, 1000);
-                });
+        function startMusicAudioContext() {
+            if (musicStarted) return;
+            if (!audioBuffer) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                audioSource = audioCtx.createBufferSource();
+                audioSource.buffer = audioBuffer;
+                audioSource.loop = true;
+                audioSource.connect(audioCtx.destination);
+                audioSource.start(0);
+                musicStarted = true;
+            } catch(e) {}
+        }
+
+        function loadAndPlay() {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Если контекст сразу в running — играем
+                if (audioCtx.state === 'running' && audioBuffer) {
+                    startMusicAudioContext();
+                }
+
+                // Слушаем разблокировку контекста
+                audioCtx.onstatechange = function() {
+                    if (audioCtx.state === 'running') startMusicAudioContext();
+                };
+
+                fetch('music.mp3')
+                    .then(function(r) { return r.arrayBuffer(); })
+                    .then(function(data) {
+                        audioCtx.decodeAudioData(data, function(buffer) {
+                            audioBuffer = buffer;
+                            startMusicAudioContext();
+                        });
+                    })
+                    .catch(function() {
+                        // fetch не сработал — fallback на обычный audio
+                        fallbackAudio();
+                    });
+            } catch(e) {
+                fallbackAudio();
             }
         }
 
-        // Пробуем сразу
-        tryPlay();
+        // Fallback: обычный <audio> тег
+        function fallbackAudio() {
+            if (musicStarted) return;
+            var audio = new Audio('music.mp3');
+            audio.loop = true;
+            audio.volume = 1;
+            audio.play().then(function() {
+                musicStarted = true;
+            }).catch(function() {
+                // Браузер всё равно блокирует — ждём взаимодействия
+            });
+        }
 
-        // Пробуем при любом взаимодействии со страницей
-        document.addEventListener('click',      tryPlay, { once: true });
-        document.addEventListener('keydown',    tryPlay, { once: true });
-        document.addEventListener('mousemove',  tryPlay, { once: true });
-        document.addEventListener('touchstart', tryPlay, { once: true });
+        // Запускаем сразу
+        loadAndPlay();
 
-        // Пробуем когда страница стала видимой
-        document.addEventListener('visibilitychange', function() {
-            if (!document.hidden) tryPlay();
+        // При любом взаимодействии пробуем ещё раз
+        ['click','keydown','mousemove','touchstart','mousedown'].forEach(function(evt) {
+            document.addEventListener(evt, function() {
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume().then(function() {
+                        startMusicAudioContext();
+                    });
+                }
+                if (!musicStarted) fallbackAudio();
+            }, { once: true });
         });
     </script>
 
