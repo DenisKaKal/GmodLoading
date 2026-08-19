@@ -4,16 +4,20 @@
     <meta charset="UTF-8">
     <title>Garry's Mod Loading Screen</title>
     <style>
-        body, html {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
             width: 100%;
             height: 100%;
             overflow: hidden;
             background-color: #000;
         }
 
-        .gta-bg {
+        .slide {
             position: fixed;
             top: 0;
             left: 0;
@@ -22,39 +26,96 @@
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
-            z-index: -1;
             filter: brightness(0.7);
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+        }
+
+        .slide.active {
+            opacity: 1;
         }
     </style>
 </head>
 <body>
 
-    <!-- Фоновый блок -->
-    <div class="gta-bg" id="gtaBg"></div>
+    <!-- Два слоя для плавного кроссфейда -->
+    <div class="slide" id="slideA"></div>
+    <div class="slide" id="slideB"></div>
 
     <!-- Музыка -->
-    <audio autoplay loop src="music.mp3"></audio>
+    <audio id="bgMusic" autoplay loop src="music.mp3" preload="auto"></audio>
 
     <script>
-        // Массив из всех 14 картинок
         var images = [
-            'bg1.jpg', 'bg2.jpg', 'bg3.jpg', 'bg4.jpg', 
-            'bg5.jpg', 'bg6.jpg', 'bg7.jpg', 'bg8.jpg', 
-            'bg9.jpg', 'bg10.jpg', 'bg11.jpg', 'bg12.jpg', 
+            'bg1.jpg',  'bg2.jpg',  'bg3.jpg',  'bg4.jpg',
+            'bg5.jpg',  'bg6.jpg',  'bg7.jpg',  'bg8.jpg',
+            'bg9.jpg',  'bg10.jpg', 'bg11.jpg', 'bg12.jpg',
             'bg13.jpg', 'bg14.jpg'
         ];
-        
+
         var currentIndex = 0;
-        var bgElement = document.getElementById('gtaBg');
+        var slideA = document.getElementById('slideA');
+        var slideB = document.getElementById('slideB');
 
-        // Устанавливаем первую картинку МГНОВЕННО при загрузке
-        bgElement.style.backgroundImage = "url('" + images[0] + "')";
+        // Какой слой сейчас "активный" (видимый)
+        var useA = true;
 
-        // Переключение на следующую картинку каждые 8 секунд (8000 мс)
+        function setSlide(el, src) {
+            el.style.backgroundImage = "url('" + src + "')";
+        }
+
+        // Показываем первую картинку сразу
+        setSlide(slideA, images[0]);
+        slideA.classList.add('active');
+
         setInterval(function() {
             currentIndex = (currentIndex + 1) % images.length;
-            bgElement.style.backgroundImage = "url('" + images[currentIndex] + "')";
+
+            if (useA) {
+                // Следующая картинка на слой B, затем показываем B и скрываем A
+                setSlide(slideB, images[currentIndex]);
+                slideB.style.zIndex = 1;
+                slideA.style.zIndex = 0;
+                slideB.classList.add('active');
+                slideA.classList.remove('active');
+            } else {
+                // Следующая картинка на слой A, затем показываем A и скрываем B
+                setSlide(slideA, images[currentIndex]);
+                slideA.style.zIndex = 1;
+                slideB.style.zIndex = 0;
+                slideA.classList.add('active');
+                slideB.classList.remove('active');
+            }
+
+            useA = !useA;
         }, 8000);
+
+        // Запуск музыки — несколько попыток
+        var music = document.getElementById('bgMusic');
+
+        function tryPlay() {
+            var promise = music.play();
+            if (promise !== undefined) {
+                promise.catch(function() {
+                    // Если заблокировано — повторяем через секунду
+                    setTimeout(tryPlay, 1000);
+                });
+            }
+        }
+
+        // Пробуем сразу
+        tryPlay();
+
+        // Пробуем при любом взаимодействии со страницей
+        document.addEventListener('click',      tryPlay, { once: true });
+        document.addEventListener('keydown',    tryPlay, { once: true });
+        document.addEventListener('mousemove',  tryPlay, { once: true });
+        document.addEventListener('touchstart', tryPlay, { once: true });
+
+        // Пробуем когда страница стала видимой
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) tryPlay();
+        });
     </script>
 
 </body>
