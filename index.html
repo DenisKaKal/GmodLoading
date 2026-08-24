@@ -8,19 +8,23 @@
         body, html {
             width: 100%; height: 100%;
             overflow: hidden;
-            background-color: #111;
+            background-color: #000;
         }
         .slide {
-            position: fixed;
+            position: absolute;
             top: 0; left: 0;
-            width: 100vw; height: 100vh;
+            width: 100%; height: 100%;
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             opacity: 0;
-            transition: opacity 1.5s ease-in-out;
+            transform: scale(1);
+            transition: opacity 2s ease-in-out, transform 8s linear;
         }
-        .slide.active { opacity: 1; }
+        .slide.active {
+            opacity: 1;
+            transform: scale(1.06);
+        }
     </style>
 </head>
 <body>
@@ -29,12 +33,11 @@
     <div class="slide" id="slideB"></div>
 
     <audio id="music" autoplay loop preload="auto">
-        <source src="music.ogg" type="audio/ogg">
-        <source src="music.mp3" type="audio/mpeg">
+        <source src="https://deniskakal.github.io/GmodLoading/music.ogg" type="audio/ogg">
+        <source src="https://deniskakal.github.io/GmodLoading/music.mp3" type="audio/mpeg">
     </audio>
 
     <script>
-        // Абсолютные URL — GMod не теряет путь к файлам
         var base = 'https://deniskakal.github.io/GmodLoading/';
         var images = [
             'bg1.jpg','bg2.jpg','bg3.jpg','bg4.jpg',
@@ -43,35 +46,40 @@
             'bg13.jpg','bg14.jpg'
         ].map(function(f) { return base + f; });
 
-        var idx = 0;
-        var A = document.getElementById('slideA');
-        var B = document.getElementById('slideB');
-        var useA = true;
+        // Фоновая предзагрузка всех 14 картинок
+        images.forEach(function(url) {
+            var img = new Image();
+            img.src = url;
+        });
 
-        A.style.backgroundImage = "url('" + images[0] + "')";
-        A.classList.add('active');
+        var idx = 0;
+        var currentSlide = document.getElementById('slideA');
+        var nextSlide = document.getElementById('slideB');
+
+        currentSlide.style.backgroundImage = "url('" + images[0] + "')";
+        currentSlide.classList.add('active');
 
         setInterval(function() {
             idx = (idx + 1) % images.length;
-            if (useA) {
-                B.style.backgroundImage = "url('" + images[idx] + "')";
-                B.style.zIndex = 1; A.style.zIndex = 0;
-                B.classList.add('active'); A.classList.remove('active');
-            } else {
-                A.style.backgroundImage = "url('" + images[idx] + "')";
-                A.style.zIndex = 1; B.style.zIndex = 0;
-                A.classList.add('active'); B.classList.remove('active');
-            }
-            useA = !useA;
+
+            nextSlide.style.backgroundImage = "url('" + images[idx] + "')";
+            nextSlide.classList.add('active');
+            currentSlide.classList.remove('active');
+
+            var temp = currentSlide;
+            currentSlide = nextSlide;
+            nextSlide = temp;
         }, 8000);
 
-        // Музыка
+        // Фоновая музыка
         var music = document.getElementById('music');
-        function play() { music.play().catch(function(){}); }
-        play();
-        document.addEventListener('mousemove', play, { once: true });
-        document.addEventListener('click', play, { once: true });
-        document.addEventListener('keydown', play, { once: true });
+        function playMusic() {
+            music.play().catch(function(){});
+        }
+        playMusic();
+        ['click', 'mousemove', 'keydown'].forEach(function(evt) {
+            document.addEventListener(evt, playMusic, { once: true });
+        });
     </script>
 
 </body>
