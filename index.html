@@ -8,27 +8,19 @@
         body, html {
             width: 100%; height: 100%;
             overflow: hidden;
-            background-color: #111;
+            background-color: #000;
         }
         .slide {
-            position: fixed;
+            position: absolute;
             top: 0; left: 0;
-            width: 100vw; height: 100vh;
+            width: 100%; height: 100%;
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
-            /* Убраны старые переходы с z-index.
-               Добавлен простой transition на opacity для чистого затухания. */
+            opacity: 0;
             transition: opacity 1.5s ease-in-out;
         }
-        /* Убрана позиция top: 0, чтобы не было сдвига. */
         .slide.active { opacity: 1; }
-        .slide:not(.active) { opacity: 0; }
-
-        /* Чтобы один слайд плавно проявлялся ПОВЕРХ другого,
-           им нужны фиксированные z-index, чтобы не менять их в JS. */
-        #slideA { z-index: 1; }
-        #slideB { z-index: 2; }
     </style>
 </head>
 <body>
@@ -43,48 +35,70 @@
 
     <script>
         var base = 'https://deniskakal.github.io/GmodLoading/';
-        var images = [
+        var rawImages = [
             'bg1.jpg','bg2.jpg','bg3.jpg','bg4.jpg',
             'bg5.jpg','bg6.jpg','bg7.jpg','bg8.jpg',
             'bg9.jpg','bg10.jpg','bg11.jpg','bg12.jpg',
             'bg13.jpg','bg14.jpg'
         ].map(function(f) { return base + f; });
 
-        var idx = 0;
-        var A = document.getElementById('slideA');
-        var B = document.getElementById('slideB');
-        
-        A.style.backgroundImage = "url('" + images[0] + "')";
-        A.classList.add('active');
-
-        // Логика простого кроссфейда без z-index сдвига
-        setInterval(function() {
-            idx = (idx + 1) % images.length;
-            
-            if (A.classList.contains('active')) {
-                // Если активен A, готовим B
-                B.style.backgroundImage = "url('" + images[idx] + "')";
-                // Т.к. у B z-index выше (2), он плавно проявится поверх A (1)
-                B.classList.add('active');
-                A.classList.remove('active');
-            } else {
-                // Если активен B, готовим A
-                A.style.backgroundImage = "url('" + images[idx] + "')";
-                // У А z-index ниже, поэтому он затухает, пока В активен,
-                // а потом когда мы его делаем активным, он проявляется, когда В затухает.
-                A.classList.add('active');
-                B.classList.remove('active');
+        // Функция случайного перемешивания массива (Фишер-Йейтс)
+        function shuffle(arr) {
+            var array = arr.slice();
+            for (var i = array.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = array[i];
+                array[i] = array[j];
+                array[j] = temp;
             }
+            return array;
+        }
+
+        // Предзагрузка всех изображений в память
+        rawImages.forEach(function(url) {
+            var img = new Image();
+            img.src = url;
+        });
+
+        var playlist = shuffle(rawImages);
+        var idx = 0;
+
+        var currentSlide = document.getElementById('slideA');
+        var nextSlide = document.getElementById('slideB');
+
+        currentSlide.style.backgroundImage = "url('" + playlist[0] + "')";
+        currentSlide.classList.add('active');
+
+        setInterval(function() {
+            idx++;
             
+            // Если показаны все картинки из набора, перемешиваем заново
+            if (idx >= playlist.length) {
+                var lastImg = playlist[playlist.length - 1];
+                do {
+                    playlist = shuffle(rawImages);
+                } while (playlist[0] === lastImg); // Избегаем повтора первой и последней картинки
+                idx = 0;
+            }
+
+            nextSlide.style.backgroundImage = "url('" + playlist[idx] + "')";
+            nextSlide.classList.add('active');
+            currentSlide.classList.remove('active');
+
+            var temp = currentSlide;
+            currentSlide = nextSlide;
+            nextSlide = temp;
         }, 8000);
 
-        // Музыка
+        // Воспроизведение музыки
         var music = document.getElementById('music');
-        function play() { music.play().catch(function(){}); }
-        play();
-        document.addEventListener('mousemove', play, { once: true });
-        document.addEventListener('click', play, { once: true });
-        document.addEventListener('keydown', play, { once: true });
+        function playMusic() {
+            music.play().catch(function(){});
+        }
+        playMusic();
+        ['click', 'mousemove', 'keydown'].forEach(function(evt) {
+            document.addEventListener(evt, playMusic, { once: true });
+        });
     </script>
 
 </body>
