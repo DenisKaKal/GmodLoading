@@ -42,7 +42,6 @@
             'bg13.jpg','bg14.jpg'
         ].map(function(f) { return base + f; });
 
-        // Функция случайного перемешивания массива (Фишер-Йейтс)
         function shuffle(arr) {
             var array = arr.slice();
             for (var i = array.length - 1; i > 0; i--) {
@@ -54,7 +53,6 @@
             return array;
         }
 
-        // Предзагрузка всех изображений в память
         rawImages.forEach(function(url) {
             var img = new Image();
             img.src = url;
@@ -72,12 +70,11 @@
         setInterval(function() {
             idx++;
             
-            // Если показаны все картинки из набора, перемешиваем заново
             if (idx >= playlist.length) {
                 var lastImg = playlist[playlist.length - 1];
                 do {
                     playlist = shuffle(rawImages);
-                } while (playlist[0] === lastImg); // Избегаем повтора первой и последней картинки
+                } while (playlist[0] === lastImg);
                 idx = 0;
             }
 
@@ -90,8 +87,10 @@
             nextSlide = temp;
         }, 8000);
 
-        // Воспроизведение музыки
+        // Настройка и воспроизведение музыки
         var music = document.getElementById('music');
+        music.volume = 0.2; // 0.2 = 20% громкости
+
         function playMusic() {
             music.play().catch(function(){});
         }
